@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class EventCard extends StatelessWidget {
@@ -6,6 +7,8 @@ class EventCard extends StatelessWidget {
   final String date;
   final String location;
   final String? imageUrl;
+  final VoidCallback? onTap;
+  final VoidCallback? onEdit;
 
   const EventCard({
     super.key,
@@ -14,122 +17,146 @@ class EventCard extends StatelessWidget {
     required this.date,
     required this.location,
     this.imageUrl,
+    this.onTap,
+    this.onEdit,
   });
+
+  Widget _buildPlaceholder(ThemeData theme) {
+    return Container(
+      color: const Color(0xFF0A0A0A), 
+      child: const Center(
+        child: Icon(Icons.image_rounded, size: 48, color: Color(0xFF333333)),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Using an InkWell makes the entire compact card tappable with a nice ripple effect
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: InkWell(
-        onTap: () {
-          // Navigate to details page later
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0A0A0A), // Subtle dark container
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFF222222),
-              width: 1,
-            ), // Crisp outline
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Material(
+        color: const Color(0xFF121212), 
+        clipBehavior:
+            Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(
+            color: Color(0xFF333333),
+            width: 1,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Thumbnail Image (Left)
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A1A),
-                  borderRadius: BorderRadius.circular(8),
-                  // Placeholder for NetworkImage later
-                  // image: imageUrl != null && imageUrl!.isNotEmpty
-                  //     ? DecorationImage(image: NetworkImage(imageUrl!), fit: BoxFit.cover)
-                  //     : null,
-                ),
-                child: imageUrl == null || imageUrl!.isEmpty
-                    ? const Center(
-                        child: Icon(
-                          Icons.image_rounded,
-                          color: Colors.white24,
-                          size: 32,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 16),
+              // IMAGE AREA
+              SizedBox(
+                height: 160,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    (imageUrl != null && imageUrl!.isNotEmpty)
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl!,
+                            fit: BoxFit.cover,
+                            // loadingBuilder: (context, child, loadingProgress) {}
+                            // errorBuilder: (context, error, stackTrace) =>
+                            //     _buildPlaceholder(theme),
+                          )
+                        : _buildPlaceholder(theme),
 
-              // 2. Event Details (Middle/Right)
-              Expanded(
+                    if (onEdit != null)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: IconButton(
+                          onPressed: onEdit,
+                          icon: const Icon(
+                            Icons.edit_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.black.withValues(
+                              alpha: 0.6,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              // THE EVENT DETAILS
+              Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Host / Category Badge (Primary Bright Accent)
                     Text(
                       host.toUpperCase(),
                       style: TextStyle(
-                        color: theme
-                            .colorScheme
-                            .primary, // This provides the bright accent
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
+                        color: theme.colorScheme.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
 
-                    // Event Title
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
+                      ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
 
-                    // Metadata Row
                     Row(
                       children: [
-                        Icon(
-                          Icons.access_time_rounded,
-                          size: 14,
-                          color: theme.colorScheme.onSurfaceVariant,
+                        const Icon(
+                          Icons.calendar_month_rounded,
+                          color: Colors.white54,
+                          size: 16,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          date,
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 12,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            date,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
+
                     Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.location_on_rounded,
-                          size: 14,
-                          color: theme.colorScheme.onSurfaceVariant,
+                          color: Colors.white54,
+                          size: 16,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             location,
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontSize: 12,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 13,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -138,16 +165,6 @@ class EventCard extends StatelessWidget {
                       ],
                     ),
                   ],
-                ),
-              ),
-
-              // 3. Action Indicator (Far Right)
-              Padding(
-                padding: const EdgeInsets.only(top: 24.0, left: 8.0),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
-                  size: 24,
                 ),
               ),
             ],

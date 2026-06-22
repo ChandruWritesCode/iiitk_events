@@ -1,7 +1,18 @@
+import 'dart:io';
+import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:http/http.dart' as http;
+import 'package:iiitk_events/constants.dart';
+import 'package:image_picker/image_picker.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class CreateEventPage extends StatefulWidget {
-  const CreateEventPage({super.key});
+  const CreateEventPage({super.key, this.eventId, this.initialData});
+  final String? eventId;
+  final Map<String, dynamic>? initialData;
 
   @override
   State<CreateEventPage> createState() => _CreateEventPageState();
@@ -10,17 +21,54 @@ class CreateEventPage extends StatefulWidget {
 class _CreateEventPageState extends State<CreateEventPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers
+  // --- CLOUDINARY CONFIG ---
+
+  File? _posterImage;
+  String _existingImageUrl = '';
+  final ImagePicker _picker = ImagePicker();
+
   final _titleController = TextEditingController();
   final _venueController = TextEditingController();
   final _descController = TextEditingController();
   final _linkController = TextEditingController();
 
-  // Date and Time controllers
   final _dateController = TextEditingController();
   final _timeController = TextEditingController();
 
+  DateTime? _selectedDateObj;
+  TimeOfDay? _selectedTimeObj;
+
   String _selectedCategory = 'Technical';
+
+  @override
+  void initState() {
+    super.initState();
+    // pre-fill
+    if (widget.initialData != null) {
+      final data = widget.initialData!;
+      _titleController.text = data['title'] ?? '';
+      _venueController.text = data['venue'] ?? '';
+      _descController.text = data['description'] ?? '';
+      _linkController.text = data['registrationLink'] ?? '';
+      _selectedCategory = data['category'] ?? 'Technical';
+      _existingImageUrl = data['imageUrl'] ?? '';
+
+      if (data['eventDate'] != null) {
+        DateTime date = (data['eventDate'] as Timestamp).toDate();
+        _selectedDateObj = date;
+        _selectedTimeObj = TimeOfDay.fromDateTime(date);
+
+        _dateController.text =
+            "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _selectedTimeObj != null) {
+            _timeController.text = _selectedTimeObj!.format(context);
+          }
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -31,6 +79,20 @@ class _CreateEventPageState extends State<CreateEventPage> {
     _dateController.dispose();
     _timeController.dispose();
     super.dispose();
+  }
+
+  // gallery
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _posterImage = File(pickedFile.path);
+      });
+    }
   }
 
   InputDecoration _customInputDecoration(
@@ -44,20 +106,16 @@ class _CreateEventPageState extends State<CreateEventPage> {
       hintText: hint,
       hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
       prefixIcon: Icon(icon, color: Colors.white54, size: 20),
-
       filled: false,
       contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFF333333), width: 1.0),
       ),
-
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: theme.colorScheme.primary, width: 2.0),
       ),
-
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
@@ -93,6 +151,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
     if (picked != null) {
       setState(() {
+        _selectedDateObj = picked;
         _dateController.text =
             "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
       });
@@ -108,7 +167,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         return Theme(
           data: theme.copyWith(
             colorScheme: ColorScheme.dark(
-              primary: theme.colorScheme.primary, // Matches global theme
+              primary: theme.colorScheme.primary,
               onPrimary: Colors.black,
               surface: const Color(0xFF121212),
               onSurface: Colors.white,
@@ -121,6 +180,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
     if (picked != null && mounted) {
       setState(() {
+        _selectedTimeObj = picked;
         _timeController.text = picked.format(context);
       });
     }
@@ -130,14 +190,16 @@ class _CreateEventPageState extends State<CreateEventPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final bool hasImage = _posterImage != null || _existingImageUrl.isNotEmpty;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'Post New Event',
-          style: TextStyle(
+        title: Text(
+          widget.eventId == null ? 'Post New Event' : 'Edit Event Details',
+          style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 18,
@@ -153,37 +215,75 @@ class _CreateEventPageState extends State<CreateEventPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               GestureDetector(
-                onTap: () {
-                  //TODO trigger upload action
-                },
+                onTap: _pickImage,
                 child: Container(
-                  height: 150,
+                  height: 180,
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFF333333),
-                      width: 1.0,
+                      color: hasImage
+                          ? theme.colorScheme.primary
+                          : const Color(0xFF333333),
+                      width: hasImage ? 2.0 : 1.0,
                     ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_photo_alternate_rounded,
-                        size: 40,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Upload Event Poster',
-                        style: TextStyle(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w600,
+                  clipBehavior: Clip.antiAlias,
+                  child: _posterImage != null
+                      ? Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.file(_posterImage!, fit: BoxFit.cover),
+                            Container(
+                              color: Colors.black.withValues(alpha: 0.4),
+                            ),
+                            const Center(
+                              child: Icon(
+                                Icons.edit_rounded,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                          ],
+                        )
+                      : _existingImageUrl.isNotEmpty
+                      ? Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CachedNetworkImage(
+                              imageUrl: _existingImageUrl,
+                              fit: BoxFit.cover,
+                            ),
+                            Container(
+                              color: Colors.black.withValues(alpha: 0.4),
+                            ),
+                            const Center(
+                              child: Icon(
+                                Icons.edit_rounded,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_photo_alternate_rounded,
+                              size: 40,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tap to Upload Event Poster',
+                              style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -307,8 +407,117 @@ class _CreateEventPageState extends State<CreateEventPage> {
               const SizedBox(height: 32),
 
               FilledButton(
-                onPressed: () {
-                  // TODO Connect to Firestore here
+                onPressed: () async {
+                  if (_titleController.text.trim().isEmpty ||
+                      _selectedDateObj == null ||
+                      _selectedTimeObj == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please fill out Title, Date, and Time'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) =>
+                        const Center(child: CircularProgressIndicator()),
+                  );
+
+                  try {
+                    DateTime parsedDate = DateTime(
+                      _selectedDateObj!.year,
+                      _selectedDateObj!.month,
+                      _selectedDateObj!.day,
+                      _selectedTimeObj!.hour,
+                      _selectedTimeObj!.minute,
+                    );
+
+                    final user = FirebaseAuth.instance.currentUser;
+
+                    String finalImageUrl = _existingImageUrl;
+
+                    // IMAGE UPLOAD LOGIC
+                    if (_posterImage != null) {
+                      final uri = Uri.parse(
+                        'https://api.cloudinary.com/v1_1/$cloudinaryCloudName/image/upload',
+                      );
+                      final request = http.MultipartRequest('POST', uri)
+                        ..fields['upload_preset'] = cloudinaryUploadPreset
+                        ..files.add(
+                          await http.MultipartFile.fromPath(
+                            'file',
+                            _posterImage!.path,
+                          ),
+                        );
+
+                      final response = await request.send();
+
+                      if (response.statusCode == 200) {
+                        final responseData = await response.stream
+                            .bytesToString();
+                        final jsonMap = json.decode(responseData);
+                        finalImageUrl = jsonMap['secure_url'];
+                      } else {
+                        throw Exception(
+                          'Failed to upload image to Cloudinary.',
+                        );
+                      }
+                    }
+
+                    if (widget.eventId != null) {
+                      await FirebaseFirestore.instance
+                          .collection('events')
+                          .doc(widget.eventId)
+                          .update({
+                            'title': _titleController.text.trim(),
+                            'category': _selectedCategory,
+                            'venue': _venueController.text.trim(),
+                            'description': _descController.text.trim(),
+                            'registrationLink': _linkController.text.trim(),
+                            'imageUrl': finalImageUrl,
+                            'eventDate': Timestamp.fromDate(parsedDate),
+                          });
+                    } else {
+                      await FirebaseFirestore.instance
+                          .collection('events')
+                          .add({
+                            'title': _titleController.text.trim(),
+                            'host': user?.displayName ?? 'Unknown Club',
+                            'category': _selectedCategory,
+                            'venue': _venueController.text.trim(),
+                            'description': _descController.text.trim(),
+                            'registrationLink': _linkController.text.trim(),
+                            'imageUrl': finalImageUrl,
+                            'eventDate': Timestamp.fromDate(parsedDate),
+                            'createdAt': FieldValue.serverTimestamp(),
+                            'creatorId': user?.uid,
+                          });
+                    }
+
+                    if (context.mounted) {
+                      Navigator.pop(context); // pop loading screen
+                      Navigator.pop(context); // pop Home Screen
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            widget.eventId == null
+                                ? 'Event Published Successfully!'
+                                : 'Event Updated Successfully!',
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      Navigator.pop(context); // Pop loading
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: ${e.toString()}')),
+                      );
+                    }
+                  }
                 },
                 style: FilledButton.styleFrom(
                   backgroundColor: theme.colorScheme.primary,
@@ -318,9 +527,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text(
-                  'Publish Event',
-                  style: TextStyle(
+                child: Text(
+                  widget.eventId == null
+                      ? 'Publish Event'
+                      : 'Update Event Details',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,

@@ -18,7 +18,6 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isConnecting = true);
 
     try {
-      // Access your authentication provider to invoke the sign-in routine
       final authProvider = Provider.of<Authentication>(context, listen: false);
 
       await authProvider.googleLoginFunc();
@@ -58,11 +57,12 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Icon(
-                      Icons.terminal_rounded, // Coding/Tech aesthetic
-                      size: 40,
-                      color: theme.colorScheme.primary,
-                    ),
+                    child: Image.asset('assets/logo/IIITKEventsLogo.png'),
+                    // child: Icon(
+                    //   Icons.terminal_rounded,
+                    //   size: 40,
+                    //   color: theme.colorScheme.primary,
+                    // ),
                   ),
                   const SizedBox(height: 24),
                   const Text(
@@ -87,7 +87,6 @@ class _LoginPageState extends State<LoginPage> {
 
               const Spacer(flex: 2),
 
-              // 2. Action Zone (The Button)
               _isConnecting
                   ? const Center(child: CircularProgressIndicator())
                   : OutlinedButton(
@@ -106,7 +105,6 @@ class _LoginPageState extends State<LoginPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Custom placeholder representation for the Google Identity Platform layout
                           const Icon(
                             Icons.g_mobiledata_rounded,
                             color: Colors.white,
@@ -127,7 +125,6 @@ class _LoginPageState extends State<LoginPage> {
 
               const Spacer(flex: 1),
 
-              // 3. Security Disclaimer Footer
               Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
                 child: Row(

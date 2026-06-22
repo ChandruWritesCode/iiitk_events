@@ -3,6 +3,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:iiitk_events/constants.dart';
 
 class Authentication extends ChangeNotifier {
   Authentication() {
@@ -21,7 +22,7 @@ class Authentication extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Error updating display name: $e');
+      // debugPrint('Error updating display name: $e');
       rethrow;
     }
   }
@@ -57,12 +58,16 @@ class Authentication extends ChangeNotifier {
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn.instance;
 
-      await googleSignIn.initialize(hostedDomain: 'iiitkottayam.ac.in');
+      await googleSignIn.initialize(
+        serverClientId:
+            serverClientId,
+        hostedDomain: 'iiitkottayam.ac.in',
+      );
 
       final GoogleSignInAccount? googleUser = await googleSignIn.authenticate();
 
       if (googleUser == null) {
-        debugPrint('user cancelled login');
+        // debugPrint('user cancelled login');
         return;
       }
 
@@ -81,7 +86,7 @@ class Authentication extends ChangeNotifier {
 
       await FirebaseAuth.instance.signInWithCredential(credential);
     } catch (e) {
-      debugPrint('error caught while signing in:  $e');
+      // debugPrint('error caught while signing in:  $e');
       rethrow;
     }
   }
@@ -92,7 +97,7 @@ class Authentication extends ChangeNotifier {
       await FirebaseAuth.instance.signOut();
       await GoogleSignIn.instance.signOut();
     } catch (e) {
-      print('error while logout $e');
+      // print('error while logout $e');
       rethrow;
     }
   }
