@@ -10,7 +10,6 @@ import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(App());
 }
@@ -71,7 +70,7 @@ class App extends StatelessWidget {
               ),
               selectedColor: Theme.of(context).primaryColor,
               side: BorderSide(width: 1, color: Theme.of(context).cardColor),
-              labelStyle: TextStyle(fontWeight: .bold),
+              labelStyle: const TextStyle(fontWeight: .bold),
             ),
 
             elevatedButtonTheme: ElevatedButtonThemeData(
@@ -88,7 +87,7 @@ class App extends StatelessWidget {
           ),
 
           debugShowCheckedModeBanner: false,
-          home: auth.loggedIn ? HomePage() : const LoginPage(),
+          home: auth.loggedIn ? const HomePage() : const LoginPage(),
         ),
       ),
     );
