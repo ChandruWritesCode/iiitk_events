@@ -1,0 +1,38 @@
+workflows:
+  ios-unsigned-build:
+    name: Flutter iOS Unsigned Build (For Sideloading)
+    # Uses Codemagic's free tier macOS machines
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter clean
+          flutter pub get
+
+      - name: Install CocoaPods dependencies
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+
+      - name: Build iOS App (Unsigned)
+        # Builds the raw .app file without checking for Apple Developer certificates
+        script: |
+          flutter build ios --release --no-codesign
+
+      - name: Package .app into .ipa for Sideloading
+        # Converts the raw .app into a sideloadable .ipa file
+        script: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          mv Runner.app Payload/
+          zip -r -q SideloadBuild.ipa Payload
+
+    artifacts:
+      # Tells Codemagic to output this specific file to your dashboard for download
+      - build/ios/iphoneos/SideloadBuild.ipa
