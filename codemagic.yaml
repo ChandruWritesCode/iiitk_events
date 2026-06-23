@@ -16,23 +16,33 @@ workflows:
           flutter clean
           flutter pub get
 
+      - name: Force iOS 15.0 Deployment Target
+        # This script runs on the Mac cloud server and dynamically patches the version
+        script: |
+          # 1. Update the main Xcode project configuration
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' ios/Runner.xcodeproj/project.pbxproj
+          
+          # 2. If the cloud server generated a Podfile, force it to 15.0
+          if [ -f "ios/Podfile" ]; then
+            sed -i '' "s/^# platform :ios, .*/platform :ios, '15.0'/g" ios/Podfile
+            sed -i '' "s/^platform :ios, .*/platform :ios, '15.0'/g" ios/Podfile
+          fi
+
       - name: Install CocoaPods dependencies
         script: |
           find . -name "Podfile" -execdir pod install \;
 
       - name: Build iOS App (Unsigned)
-        # Builds the raw .app file without checking for Apple Developer certificates
         script: |
           flutter build ios --release --no-codesign
 
       - name: Package .app into .ipa for Sideloading
-        # Converts the raw .app into a sideloadable .ipa file
         script: |
           cd build/ios/iphoneos
           mkdir -p Payload
           mv Runner.app Payload/
           zip -r -q SideloadBuild.ipa Payload
-
+          
     artifacts:
       # Tells Codemagic to output this specific file to your dashboard for download
       - build/ios/iphoneos/SideloadBuild.ipa
